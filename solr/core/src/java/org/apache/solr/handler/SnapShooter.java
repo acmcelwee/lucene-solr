@@ -39,6 +39,7 @@ import org.apache.solr.common.util.NamedList;
 import org.apache.solr.core.DirectoryFactory;
 import org.apache.solr.core.DirectoryFactory.DirContext;
 import org.apache.solr.core.SolrCore;
+import org.apache.solr.core.TarSnappyDirectory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -201,7 +202,7 @@ public class SnapShooter {
 
 
   private static void copyFiles(Directory sourceDir, Collection<String> files, File destDir) throws IOException {
-    try (FSDirectory dir = new SimpleFSDirectory(destDir.toPath(), NoLockFactory.INSTANCE)) {
+    try (TarSnappyDirectory dir = new TarSnappyDirectory(destDir.toPath(), NoLockFactory.INSTANCE)) {
       for (String indexFile : files) {
         dir.copyFrom(sourceDir, indexFile, indexFile, DirectoryFactory.IOCONTEXT_NO_CACHE);
       }
