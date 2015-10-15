@@ -27,8 +27,10 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.concurrent.Future;
 
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 import org.apache.lucene.store.BaseDirectory;
+import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.store.FSLockFactory;
 import org.apache.lucene.store.IOContext;
@@ -37,6 +39,7 @@ import org.apache.lucene.store.IndexOutput;
 import org.apache.lucene.store.LockFactory;
 import org.apache.lucene.store.MMapDirectory;
 import org.apache.lucene.store.NIOFSDirectory;
+import org.apache.lucene.util.IOUtils;
 import org.xerial.snappy.SnappyFramedOutputStream;
 
 /** A straightforward implementation of {@link FSDirectory}
@@ -76,7 +79,7 @@ public class TarSnappyDirectory extends BaseDirectory {
     super(lockFactory);
 
     archiveName = path.toFile().getName();
-    archiveFile = new File(archiveName + "." + ARCHIVE_SUFFIX);
+    archiveFile = new File(path.toFile().getAbsoluteFile(), archiveName + "." + ARCHIVE_SUFFIX);
 
     BufferedOutputStream fileOutputStream = new BufferedOutputStream(new FileOutputStream(archiveFile));
     SnappyFramedOutputStream snappyOutputStream = new SnappyFramedOutputStream(fileOutputStream);
@@ -131,7 +134,41 @@ public class TarSnappyDirectory extends BaseDirectory {
 
   @Override
   public IndexOutput createOutput(String name, IOContext context) throws IOException {
-    return new TarEntryWriter(new File(archiveName, name).toPath(), oStream);
+    return createOutput(name, context, 0);
   }
 
+  public IndexOutput createOutput(String name, IOContext context, long size) throws IOException {
+    return new TarEntryWriter(new File(archiveName, name).toPath(), oStream, size);
+  }
+
+  /**
+   * Copies the file <i>src</i> in <i>from</i> to this directory under the new
+   * file name <i>dest</i>.
+   * <p>
+   * If you want to copy the entire source directory to the destination one, you
+   * can do so like this:
+   *
+   * <pre class="prettyprint">
+   * Directory to; // the directory to copy to
+   * for (String file : dir.listAll()) {
+   *   to.copyFrom(dir, file, newFile, IOContext.DEFAULT); // newFile can be either file, or a new name
+   * }
+   * </pre>
+   * <p>
+   * <b>NOTE:</b> this method does not check whether <i>dest</i> exist and will
+   * overwrite it if it does.
+   */
+  @Override
+  public void copyFrom(Directory from, String src, String dest, IOContext context) throws IOException {
+    boolean success = false;
+    try (IndexInput is = from.openInput(src, context);
+         IndexOutput os = createOutput(dest, context, is.length())) {
+      os.copyBytes(is, is.length());
+      success = true;
+    } finally {
+      if (!success) {
+        IOUtils.deleteFilesIgnoringExceptions(this, dest);
+      }
+    }
+  }
 }

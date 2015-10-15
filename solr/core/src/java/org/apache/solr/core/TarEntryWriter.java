@@ -23,18 +23,20 @@ import java.nio.file.Path;
 
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
+import org.apache.lucene.store.DataInput;
 import org.apache.lucene.store.OutputStreamIndexOutput;
 
 public class TarEntryWriter extends OutputStreamIndexOutput {
   private static final int BUFFER_SIZE = 8192;
 
-  public TarEntryWriter(Path outputPath, TarArchiveOutputStream tarOutputStream) throws IOException {
-    super("path=" + outputPath, getOutputStream(outputPath, tarOutputStream), BUFFER_SIZE);
+  public TarEntryWriter(Path outputPath, TarArchiveOutputStream tarOutputStream, long outputSize) throws IOException {
+    super("path=" + outputPath, getOutputStream(outputPath, tarOutputStream, outputSize), BUFFER_SIZE);
   }
 
-  private static OutputStream getOutputStream(Path path, TarArchiveOutputStream tarOutputStream) throws IOException {
-    String entryName = path.toFile().getName();
+  private static OutputStream getOutputStream(Path path, TarArchiveOutputStream tarOutputStream, long outputSize) throws IOException {
+    String entryName = path.toString();
     TarArchiveEntry tarArchiveEntry = new TarArchiveEntry(entryName);
+    tarArchiveEntry.setSize(outputSize);
     tarOutputStream.putArchiveEntry(tarArchiveEntry);
     return new TarEntryWriterOutputStream(tarOutputStream);
   }
